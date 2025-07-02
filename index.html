@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Token Burn Controls</title>
+<script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { margin: 10px 0; padding: 10px 15px; font-size: 16px; }
+    #output { margin-top: 20px; white-space: pre-wrap; background: #f0f0f0; padding: 10px; border-radius: 5px; }
+    input { padding: 5px; font-size: 16px; width: 60px; margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Token Burn Controls</h1>
+  <p><strong>Issuer Address:</strong> 0x528d7d5Aaa33D68399fE7c16c1AF419cce2CC397</p>
+
+  <label for="indexInput">Index:</label>
+  <input id="indexInput" type="number" value="3" min="1" />
+
+  <div>
+    <button onclick="pauseTransfers(true)">Pause Transfers</button><br>
+    <button onclick="freezeTokens()">Freeze Index</button><br>
+    <button onclick="burnTokens()">Burn Index</button><br>
+    <button onclick="pauseTransfers(false)">Unpause Transfers</button>
+  </div>
+
+  <div id="output"></div>
+
+  <script>
+    const tokenOwnerAddress = "0x6b643c002F095345252319F5b07E4dbE3162eff6";
+    const issuerAuthority = "0x528d7d5Aaa33D68399fE7c16c1AF419cce2CC397";
+
+    const abi = [
+      {
+        "name": "pauseTransfers",
+        "type": "function",
+        "inputs": [
+          { "name": "paused", "type": "bool" },
+          { "name": "sig", "type": "bytes" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      },
+      {
+        "name": "freezeTokens",
+        "type": "function",
+        "inputs": [
+          { "name": "fromIdx", "type": "uint256" },
+          { "name": "toIdx", "type": "uint256" },
+          { "name": "quotNum", "type": "uint256" },
+          { "name": "quotDenom", "type": "uint256" },
+          { "name": "sig", "type": "bytes" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      },
+      {
+        "name": "burnTokens",
+        "type": "function",
+        "inputs": [
+          { "name": "fromIdx", "type": "uint256" },
+          { "name": "toIdx", "type": "uint256" },
+          { "name": "sig", "type": "bytes" }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      }
+    ];
+
+    function getIndex() {
+      const input = document.getElementById("indexInput");
+      return parseInt(input.value);
+    }
+
+    async function getSigner() {
+      if (!window.ethereum) throw new Error("MetaMask not detected");
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+      if (address.toLowerCase() !== issuerAuthority.toLowerCase()) {
+        throw new Error("Connected wallet is not the issuer authority.");
+      }
+      return { signer, contract: new ethers.Contract(tokenOwnerAddress, abi, signer) };
+    }
+
+    async function pauseTransfers(paused) {
+      try {
+        const { contract } = await getSigner();
+        const tx = await contract.pauseTransfers(paused, "0x");
+        output(`Sent pauseTransfers(${paused}) tx: ${tx.hash}`);
+        await tx.wait();
+        output("Confirmed.");
+      } catch (err) {
+        output("Error: " + err.message);
+      }
+    }
+
+    async function freezeTokens() {
+      try {
+        const { contract } = await getSigner();
+        const index = getIndex();
+        const tx = await contract.freezeTokens(index, index + 1, 1, 1, "0x");
+        output(`Sent freezeTokens tx: ${tx.hash}`);
+        await tx.wait();
+        output("Confirmed.");
+      } catch (err) {
+        output("Error: " + err.message);
+      }
+    }
+
+    async function burnTokens() {
+      try {
+        const { contract } = await getSigner();
+        const index = getIndex();
+        const tx = await contract.burnTokens(index, index + 1, "0x");
+        output(`Sent burnTokens tx: ${tx.hash}`);
+        await tx.wait();
+        output("Confirmed.");
+      } catch (err) {
+        output("Error: " + err.message);
+      }
+    }
+
+    function output(msg) {
+      const div = document.getElementById("output");
+      div.textContent += msg + "\n";
+    }
+  </script>
+</body>
+</html>
